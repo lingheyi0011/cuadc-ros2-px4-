@@ -1,0 +1,28 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Backup files
+*.bak
+*.bak-*
+*.trt_bak
+
+# Large generated model files (regenerable from best.pt)
+*.onnx
+*.engine
+
+# Logs
+*.log
