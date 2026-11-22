@@ -20,6 +20,6 @@ source /mnt/sda/yolov5_env.sh
 export MPLBACKEND=Agg
 
 echo "✅ uav_ws 环境已加载"
-echo "   启动检测(前视): ros2 run yolov5_ros2 yolo_detect_2d_014106"
+echo "   启动检测(前视): ros2 run yolov5_ros2 yolo_detect_2d"
 echo "   启动检测(下视): ros2 run yolov5_ros2 yolo_detect_2d_down"
 echo "   启动跟踪节点:   ros2 run uav_tracker uav_tracker"

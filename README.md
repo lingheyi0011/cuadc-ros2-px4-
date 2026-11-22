@@ -1,0 +1,181 @@
+# cuadc-ros2-px4
+
+基于 **ROS 2 (Eloquent) + PX4 (MAVROS) + YOLOv5/TensorRT** 的无人机自主任务系统，面向 **NVIDIA Jetson Nano** 部署。
+
+包含两个 ROS 2 包：
+
+| 包 | 作用 |
+|---|---|
+| `uav_tracker` | 自主任务主控（状态机）：起飞、搜索、目标跟踪、投弹、返航、降落 |
+| `yolov5_ros2` | YOLOv5 目标检测节点（前视 / 下视），支持 PyTorch 与 TensorRT 推理 |
+
+---
+
+## 系统架构
+
+```
+                    ┌──────────────────────┐
+   PX4 飞控 ◄──────►│  MAVROS  (mavros_node)│
+                    └──────────┬───────────┘
+                               │ /mavros/*
+                    ┌──────────▼───────────┐
+                    │   uav_tracker        │  状态机主控
+                    │  (mission control)   │
+                    └──┬───────────────┬───┘
+      /front_camera/*  │               │  /down_camera/*
+                       ▼               ▼
+              ┌────────────────┐ ┌────────────────┐
+              │ yolo_detect_2d │ │yolo_detect_2d_ │
+              │   (前视检测)    │ │  down (下视)   │
+              └───────┬────────┘ └───────┬────────┘
+                      │ /detections_3d    │ /down_detections_relative
+                      └────────┬──────────┘
+                               ▼
+                         uav_tracker 消费检测结果
+```
+
+### 关键话题
+
+| 方向 | 话题 | 类型 |
+|---|---|---|
+| 订阅 | `/mavros/state` | mavros_msgs/State |
+| 订阅 | `/mavros/local_position/pose` | geometry_msgs/PoseStamped |
+| 订阅 | `/mavros/global_position/compass_hdg` | std_msgs/Float64 |
+| 订阅 | `/detections_3d` | vision_msgs/Detection2DArray（前视） |
+| 订阅 | `/down_detections_relative` | vision_msgs/Detection2DArray（下视） |
+| 发布 | `/mavros/setpoint_position/local` | geometry_msgs/PoseStamped |
+| 发布 | `/mavros/setpoint_raw/local` | mavros_msgs/PositionTarget |
+| 发布 | `/mavros/setpoint_velocity/cmd_vel` | geometry_msgs/TwistStamped |
+| 发布 | `/front_camera/activate`、`/front_camera/rate` | std_msgs/Bool、Int16 |
+| 发布 | `/down_camera/activate`、`/down_camera/rate` | std_msgs/Bool、Int16 |
+
+### 状态机流程
+
+```
+INIT → PREFLIGHT → YAW_SAMPLING → ASCENDING → SEARCHING
+   → GO_POINT1 → WAIT_BOMB_DETECTIONS → GO_BOMB_TARGETS
+   → GO_POINT2 → SCOUT_SCAN → TRACKING → RETURNING → LANDING
+   → MISSION_COMPLETE           （异常 → SAFE）
+```
+
+---
+
+## 环境依赖
+
+> 本项目在 **Jetson Nano (JetPack 4.6.6 / L4T R32.7.6, Ubuntu 18.04)** + **ROS 2 Eloquent** 上验证通过。
+
+- **ROS 2 Eloquent**（`/opt/ros/eloquent`）
+- **MAVROS 2.2.0**（源码编译，仅支持 Eloquent 的版本；含 `libmavconn` / `mavros_msgs` / `mavros` / `mavros_extras`）
+- **vision_msgs**：`sudo apt install ros-eloquent-vision-msgs`
+- **YOLOv5 运行环境**：PyTorch 1.10 (Qengineering sm_53 wheel) + TensorRT 8.2 + pycuda + onnx + numpy 1.16.6
+  （详见 `yolov5_env.sh` 相关配置；无需在此仓库内）
+- 相机：Intel RealSense D435i（`realsense2_camera`）或 USB 相机（`usb_cam`）
+
+### 模型文件
+
+仓库仅包含 `src/yolov5_ros2/config/best.pt`（YOLOv5 v7.0，2 类：`' '` 和 `'tong'`=桶）。
+
+`best.onnx` 与 `best_fp16.engine` **未上传**（体积大、可由 best.pt 重新生成）：
+
+```bash
+# 1. 导出 ONNX
+python3 /mnt/sda/yolov5-7.0/export.py \
+    --weights src/yolov5_ros2/config/best.pt \
+    --include onnx --img 640 --opset 12
+
+# 2. 转 TensorRT FP16 engine（约 7 分钟）
+python3 /mnt/sda/yolov5-6.0/onnx2trt.py \
+    best.onnx best_fp16.engine fp16
+```
+
+> 检测节点默认加载 `config/best_fp16.engine`；如需用 PyTorch，把节点里的 `model_path` 改回 `best.pt`。
+
+---
+
+## 编译
+
+```bash
+# 1. 先编译 mavros（若尚未编译），并 source 其 install
+source /mnt/sda/mavros_ws/install/setup.bash
+
+# 2. 编译本工作空间
+cd ~/uav_ws
+colcon build --packages-select uav_tracker yolov5_ros2 \
+    --symlink-install
+```
+
+---
+
+## 运行
+
+```bash
+# 加载统一环境（ROS + mavros + 本工作空间 + YOLOv5/TensorRT）
+source ~/uav_ws/uav_env.sh
+
+# 终端 1：MAVROS（连接飞控，按实际串口/波特率修改）
+ros2 run mavros mavros_node --ros-args -p fcu_url:=/dev/ttyUSB0:921600
+
+# 终端 2：前视检测
+ros2 run yolov5_ros2 yolo_detect_2d
+
+# 终端 3：下视检测
+ros2 run yolov5_ros2 yolo_detect_2d_down
+
+# 终端 4：主控状态机
+ros2 run uav_tracker uav_tracker
+```
+
+> **可执行名注意**：`yolo_detect_2d`（不是源文件名 `yolo_detect_2d_014106`）。
+
+### 主控参数（可在启动时覆盖）
+
+```bash
+ros2 run uav_tracker uav_tracker --ros-args \
+    -p target_height:=1.0 \
+    -p max_speed:=1.0 \
+    -p home_position:="[0.0, 0.0, 2.0]"
+```
+
+常用参数：`target_height`、`bomb_scan_height_offset`、`bomb_recheck_hover_time`、
+`bomb_stabilize_time`、`bomb_post_drop_hover_time`、`k_p/k_i/k_d`、`arm_timeout`、`max_speed`、`home_position`。
+
+---
+
+## 目录结构
+
+```
+uav_ws/
+├── src/
+│   ├── uav_tracker/          # 自主任务主控（状态机）
+│   │   ├── uav_tracker/uav_tracker.py
+│   │   ├── package.xml
+│   │   └── setup.py
+│   └── yolov5_ros2/          # YOLOv5 检测节点
+│       ├── config/
+│       │   ├── best.pt                 # 模型权重（2 类）
+│       │   ├── camera_info.yaml        # 前视相机标定
+│       │   └── down_camera_info.yaml   # 下视相机标定
+│       ├── yolov5_ros2/
+│       │   ├── yolo_detect_2d_014106.py   # 前视检测节点
+│       │   ├── yolo_detect_2d_down.py     # 下视检测节点
+│       │   ├── yolov5_shim.py             # YOLOv5 v7 兼容垫片
+│       │   └── cv_tool.py
+│       ├── package.xml
+│       └── setup.py
+└── uav_env.sh                # 统一环境加载脚本
+```
+
+---
+
+## 已知注意事项
+
+- **Python 3.6 / GCC 7.5**：Eloquent 环境较老，`yolov5_shim.py` 用于让 YOLOv5 v7.0 模型在 v6.0 运行时下加载。
+- **TensorRT engine 与 GPU 绑定**：`best_fp16.engine` 只能在构建它的机器（Jetson Nano, sm_53）上使用，换机需重新生成。
+- **内存**：双检测节点同时运行内存吃紧（Jetson Nano 仅 4G），建议配置 swap 或降低输入尺寸。
+- **mavros 版本**：必须用 2.2.0（Eloquent 对应版本），2.3+ 需要 Foxy 及以上。
+
+---
+
+## License
+
+[Apache-2.0](LICENSE)
