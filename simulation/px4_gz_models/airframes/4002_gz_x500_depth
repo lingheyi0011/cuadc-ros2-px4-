@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# @name Gazebo x500 depth
+#
+# @type Quadrotor
+#
+
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=x500_depth}
+
+. ${R}etc/init.d-posix/airframes/4001_gz_x500
+# SITL 启动即摆正：机头沿 +Y；磁航向补偿对齐，避免 tracker 采样到 -8.8 度
+param set NAV_DLL_ACT 0

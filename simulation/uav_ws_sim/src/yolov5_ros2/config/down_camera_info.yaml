@@ -1,0 +1,10 @@
+# 下视相机内参（实机部署时替换本文件即可）
+# 也可用 -p camera_info_file:=/path/to/camera.yaml 指定其他路径
+# 支持两种写法：camera_matrix(fx/fy/cx/cy) 或 ROS 风格 k 数组(9 个值)
+image_width: 640
+image_height: 480
+camera_matrix:
+  fx: 269.9682
+  fy: 269.9682
+  cx: 320.0
+  cy: 240.0
