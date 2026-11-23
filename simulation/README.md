@@ -2,6 +2,17 @@
 
 本目录收录**高性能电脑上的 PX4 + Gazebo 仿真验证版本**，与仓库根目录的 Jetson 实机版本分开存放。
 
+## 运行环境版本
+
+| 组件 | 版本 |
+| --- | --- |
+| 操作系统 | Ubuntu 26.04 LTS |
+| ROS 2 | **Lyrical**（`/opt/ros/lyrical`） |
+| PX4 固件 | **v1.18.0-alpha1-258-g63ffa3f9dd**（`main` 分支，v1.18.0-alpha1 之后 258 个提交） |
+| 仿真器 | Gazebo（gz，PX4 `Tools/simulation/gz`） |
+
+> 版本以仿真电脑上实际运行的环境为准，如升级 ROS 2 / PX4 请同步更新此表。
+
 ## 目录说明
 
 ### `uav_ws_sim/` — 仿真版 ROS 2 工作空间源码

@@ -24,6 +24,8 @@
 本仓库同时收录**仿真版本**与**实机部署版本**，请按用途选择：
 
 - **仿真版本**（[`simulation/`](simulation/README.md)）：高性能电脑上的 **PX4 + Gazebo** 仿真验证版本，含 ROS 2 源码与 gz 仿真模型库定制部分（投弹模型、相机模型、场地等）。用于算法验证与仿真联调。
+
+  > 仿真运行环境：**Ubuntu 26.04 + ROS 2 Lyrical**，**PX4 固件 v1.18.0-alpha1-258-g63ffa3f9dd**（`main` 分支）。
 - **实机版本**（仓库根目录）：面向 **Jetson** 的部署代码，采用 TensorRT 推理。
 - 本项目实际做过**实机测试**的部署平台为 **Jetson Orin Nano + 雷讯 X7+ 飞控**。
 - **Jetson Orin Nano 实机部署版本源码尚未上传**到本仓库（根目录为 Jetson Nano 版本）。
