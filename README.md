@@ -1,10 +1,14 @@
 # cuadc-ros2-px4
 
-基于 **ROS 2 (Eloquent) + PX4 (MAVROS) + YOLOv5/TensorRT** 的无人机自主任务系统，面向 **NVIDIA Jetson Nano** 部署。
+基于 **ROS 2 (Eloquent) + PX4 (MAVROS) + YOLOv5/TensorRT** 的无人机自主任务系统，支持 **NVIDIA Jetson 部署**与 **PX4 + Gazebo 仿真**。
 
-> ⚠️ **本仓库为 Gazebo 仿真验证版本，尚未在 Jetson Nano 实机测试。** 实机测试版本（Jetson Orin Nano + 雷讯 X7+ 飞控）及高性能电脑 PX4+Gazebo 仿真版本尚未上传。实机需配备**高精度 RTK 定位模块**与**定高激光雷达**。使用前请务必阅读下方「[项目状态与适用范围](#项目状态与适用范围)」。
+> 📦 **仓库包含两部分：**
+> - **根目录**：Jetson 部署版本（`uav_tracker` + `yolov5_ros2`，TensorRT 推理，面向 Jetson Nano/Orin 实机）
+> - **[`simulation/`](simulation/README.md)**：高性能电脑上的 **PX4 + Gazebo 仿真验证版本**（ROS 2 源码 + gz 仿真模型库定制部分）
+>
+> ⚠️ 实机需配备**高精度 RTK 定位模块**与**定高激光雷达**。使用前请务必阅读下方「[项目状态与适用范围](#项目状态与适用范围)」。
 
-包含两个 ROS 2 包：
+核心包含两个 ROS 2 包（实机版与仿真版共用同一套包结构）：
 
 | 包 | 作用 |
 |---|---|
@@ -17,14 +21,14 @@
 
 > ⚠️ **请务必先读这一节再使用本仓库。**
 
-本仓库上传的源码是**面向 Gazebo 仿真的版本**，仅用于算法验证与仿真联调。请注意以下几点：
+本仓库同时收录**仿真版本**与**实机部署版本**，请按用途选择：
 
-- **本仓库版本仅通过 Gazebo 仿真测试**，**尚未在 Jetson Nano 实机上测试**。
-- 本项目实际做过**实机测试**的是另一套部署版本：**Jetson Orin Nano + 雷讯 X7+ 飞控**。
-- 以下两个版本**尚未上传**到本仓库：
-  1. **高性能电脑上用于 PX4 固件 + Gazebo 仿真的版本**
-  2. **Jetson Orin Nano 实机部署版本**
-- 因此，本仓库代码**不能直接用于实机飞行**，实机使用请参考上述未上传的版本。
+- **仿真版本**（[`simulation/`](simulation/README.md)）：高性能电脑上的 **PX4 + Gazebo** 仿真验证版本，含 ROS 2 源码与 gz 仿真模型库定制部分（投弹模型、相机模型、场地等）。用于算法验证与仿真联调。
+- **实机版本**（仓库根目录）：面向 **Jetson** 的部署代码，采用 TensorRT 推理。
+- 本项目实际做过**实机测试**的部署平台为 **Jetson Orin Nano + 雷讯 X7+ 飞控**。
+- **Jetson Orin Nano 实机部署版本源码尚未上传**到本仓库（根目录为 Jetson Nano 版本）。
+
+> 仿真版本代码**不能直接用于实机飞行**；实机使用请参考根目录 Jetson 版本，并按下方说明修改相机参数。
 
 ### ⚠️ 使用前必须修改的参数（相机标定）
 
@@ -51,7 +55,7 @@
 
 [▶ 点击查看实机测试视频](docs/media/real_flight_test.mp4)
 
-> 注：本视频为 Jetson Orin Nano 实机版本测试，对应源码尚未上传本仓库；本仓库代码为 Gazebo 仿真版本。
+> 注：本视频为 Jetson Orin Nano 实机版本测试，对应源码尚未上传本仓库；根目录代码为 Jetson 版本，仿真版本见 [`simulation/`](simulation/README.md)。
 
 ---
 
@@ -206,6 +210,12 @@ uav_ws/
 │       │   └── cv_tool.py
 │       ├── package.xml
 │       └── setup.py
+├── simulation/               # PX4 + Gazebo 仿真版本（详见 simulation/README.md）
+│   ├── uav_ws_sim/src/       #   仿真版 ROS 2 工作空间源码
+│   └── px4_gz_models/        #   gz 仿真模型库定制部分
+│       ├── models/           #     bomb1/2/3(投弹)、drop_cam、recon_cam 等
+│       ├── worlds/           #     default.sdf
+│       └── airframes/        #     4002_gz_x500_depth
 └── uav_env.sh                # 统一环境加载脚本
 ```
 
@@ -213,7 +223,7 @@ uav_ws/
 
 ## 已知注意事项
 
-- **⚠️ 实机使用前必读**：见上文「[项目状态与适用范围](#项目状态与适用范围)」。本仓库仅通过 Gazebo 仿真测试，未在 Jetson Nano 实机验证；相机内参/外参需按实际硬件修改。
+- **⚠️ 实机使用前必读**：见上文「[项目状态与适用范围](#项目状态与适用范围)」。仓库根目录为 Jetson 部署版本，仿真版本见 [`simulation/`](simulation/README.md)；相机内参/外参需按实际硬件修改。
 - **⚠️ 硬件要求**：实机需配备**高精度 RTK 定位模块**和**定高激光雷达**，普通 GPS 与气压计精度不足。
 - **Python 3.6 / GCC 7.5**：Eloquent 环境较老，`yolov5_shim.py` 用于让 YOLOv5 v7.0 模型在 v6.0 运行时下加载。
 - **TensorRT engine 与 GPU 绑定**：`best_fp16.engine` 只能在构建它的机器（Jetson Nano, sm_53）上使用，换机需重新生成。
